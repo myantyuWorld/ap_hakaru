@@ -82,8 +82,6 @@ def _get_access_token():
     return access_t
 
 def _analysis_meter_image(_access_token, _image_data):
-    # 
-
     r = requests.post(
         URL + '/v1/resources/images/meter_type/MET0005',
         json.dumps({
@@ -105,6 +103,25 @@ def _analysis_meter_image(_access_token, _image_data):
     else:
         m_value = '0000'
         m_time  = '0000'    
+
+    # リクエスト結果（成功でも失敗でも）をDB OR JSONに保存
+    # 　形式は以下の通りとする
+    #       {
+    #             id : auto_increment,
+    #             value : merter_value,
+    #             time : meter_time,
+    #             analysis_result : 1/0{成功/失敗}
+    #             image : image_data(base64形式)
+    #       }　　
+    _json_data = dict()
+    data["id"] = "1"
+    data["value"] = str(m_value)
+    data["time"] = str(m_time)
+    data["analysis_result"] = "1" if m_value is not '0000' else '0'
+    data["image"] = _image_data
+
+    with open('data.json', mode='wt') as file:
+        json.dump(data, file, ensure_ascii=False, indent=2)
 
     return m_value, m_time
 
