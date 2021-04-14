@@ -1,29 +1,33 @@
+# -*- coding: utf-8 -*-
 import os
 import requests
 import json
 import base64
+from datetime import datetime 
 from flask import Flask
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
 
-# env
-API_KEY_ID = ''
-API_KEY_PASS = ''
-ACCESS_TOKEN_URL = ''
-URL = ''
-CHECK_API_URL = ''
+# Get the required value in the API from the environment variable
+API_KEY_ID = os.environ.get('H_API_KEY_ID','')
+API_KEY_PASS = os.environ.get('H_API_KEY_PASS','')
+ACCESS_TOKEN_URL = os.environ.get('H_ACCESS_TOKEN_URL','')
+URL = os.environ.get('H_URL','')
+REQUEST_ID = os.environ.get('H_REQUST_ID','')
+WEB_HOOK_URL = os.environ.get('TEAMS_WEB_HOOK_URL','')
 
-@app.route('/')
+
+# test method
+@app.route('/analysis_temperature')
 def hello():
-    name = "Hello World"
-
-    _id, _pass, _token_url, _url, _check_api_url, _request_id = _get_env()
+    # environment variable check
+    if API_KEY_ID is '':
+        return "no setting environment variables!"
 
     #  get access token
-    access_t = _get_access_token(_url, _id, _pass)
-
+    access_t = _get_access_token()
     if access_t is 401:
         print("can not get access token!")
         return None
@@ -31,24 +35,16 @@ def hello():
     image_data = _image_file_to_base64('image.jpg')
 
     # analysis degital meter
-    meter_value, meter_time = _analysis_meter_image(_url, access_t, _request_id, image_data)
+    meter_value, meter_time = _analysis_meter_image(access_t, image_data)
 
-    return meter_value, meter_time
+    # notify micorosoft teams
+    # TOD
+    post_teams_message(meter_value, meter_time)
 
+    name = "Hello World"
+    return name
 
-# Get the required value in the API from the environment variable
-def _get_env():
-    print("call _get_env()")
-
-    API_KEY_ID = os.environ.get('H_API_KEY_ID')
-    API_KEY_PASS = os.environ.get('H_API_KEY_PASS')
-    ACCESS_TOKEN_URL = os.environ.get('H_ACCESS_TOKEN_URL')
-    URL = os.environ.get('H_URL')
-    REQUEST_ID = os.environ.get('H_REQUST_ID')
-
-    print("end _get_env()")
-
-    return API_KEY_ID, API_KEY_PASS, ACCESS_TOKEN_URL, URL, CHECK_API_URL, REQUEST_ID
+# ----------------------------------------------------------------------------------------
 
 # Convert image to base64
 def _image_file_to_base64(file_path):
@@ -60,16 +56,20 @@ def _image_file_to_base64(file_path):
     return data.decode()
 
 # Get an API access token
-def _get_access_token(_url, _id, _pass):
+def _get_access_token():
     print("start _get_access_token()")
     
     r = requests.post(
-        _url + '/v2/oauth2/access_token',
-        json.dumps({ 'username' : _id , 'password' : _pass }),
-        headers = {'Content-Type': 'application/json'})
+        URL + '/v2/oauth2/access_token',
+        json.dumps({ 
+            'username' : API_KEY_ID ,
+            'password' : API_KEY_PASS 
+        }),
+        headers = {
+            'Content-Type': 'application/json'
+        })
     
     data = r.json()
-    # print(data)
     
     if r.status_code == 200:
         access_t = data['access_token']
@@ -81,14 +81,21 @@ def _get_access_token(_url, _id, _pass):
 
     return access_t
 
-def _analysis_meter_image(_url, _access_token, _request_id, _image_data):
+def _analysis_meter_image(_access_token, _image_data):
+    # 
+
     r = requests.post(
-        _url + '/v1/resources/images/meter_type/MET0005',
-        json.dumps({'image' : _image_data}),
-        headers = {'Content-Type': 'application/json','Authorization': 'Bearer '+ str(_access_token),'X-Hakaru-Request-Id':_request_id})
-    
+        URL + '/v1/resources/images/meter_type/MET0005',
+        json.dumps({
+            'image' : _image_data
+        }),
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer '+ str(_access_token),
+            'X-Hakaru-Request-Id':REQUEST_ID
+        })
+
     data = r.json()
-    
     print(data)
     
     if data["result"]["error_code"] == 'OK':
@@ -100,6 +107,22 @@ def _analysis_meter_image(_url, _access_token, _request_id, _image_data):
         m_time  = '0000'    
 
     return m_value, m_time
+
+def post_teams_message(_meter_value, _meter_time):
+
+    dt_now = datetime.now()
+    if _meter_value is '0000':
+        print("error temporature analysis!")
+        message = "error"
+    else:
+        message  = "{0}".format(str(_meter_value))
+    
+    requests.post(
+        WEB_HOOK_URL, 
+        json.dumps({
+            'title': 'analysis result',
+            'text': message
+        }))
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5000)
