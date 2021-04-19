@@ -49,7 +49,8 @@ def analysis_temperature():
         return None
     
     # TOD カメラで温度計を撮影し、base64変換
-    image_data = _image_file_to_base64('image.jpg')
+    _camera_capture()
+    image_data = _image_file_to_base64('my_pic.jpg')
 
 
     # analysis degital meter
