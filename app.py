@@ -4,13 +4,16 @@ import requests
 import json
 import base64
 from datetime import datetime 
-from flask import Flask
+from flask import *
+from flask import render_template
 from flask_cors import CORS
+from db import select_all, insert_analysis
 
 app = Flask(__name__)
+app.config["JSON_AS_ASCII"] = False
 CORS(app)
 
-# Get the required value in the API from the environment variable
+# 環境変数から値を取得します
 API_KEY_ID = os.environ.get('H_API_KEY_ID','')
 API_KEY_PASS = os.environ.get('H_API_KEY_PASS','')
 ACCESS_TOKEN_URL = os.environ.get('H_ACCESS_TOKEN_URL','')
@@ -18,10 +21,21 @@ URL = os.environ.get('H_URL','')
 REQUEST_ID = os.environ.get('H_REQUST_ID','')
 WEB_HOOK_URL = os.environ.get('TEAMS_WEB_HOOK_URL','')
 
+# 解析結果JSONファイルの中身を返します
+@app.route('/fetch_all')
+def fetch_all():
+    return jsonify({"result" : select_all()})
 
-# test method
+@app.route('/photo_temperature')
+def test_temperature():
+    # TOD : ラズパイで写真撮影し、それを変数に格納
+
+    # TOD : 撮影した写真を返せるように修正（現在、ハードコーディング中
+    return '<img src="data:image/png;base64,' + _image_file_to_base64('image.jpg') + '"/>'
+
+# 画像から解析AIに投げた結果をTeams通知します
 @app.route('/analysis_temperature')
-def hello():
+def analysis_temperature():
     # environment variable check
     if API_KEY_ID is '':
         return "no setting environment variables!"
@@ -32,7 +46,9 @@ def hello():
         print("can not get access token!")
         return None
     
+    # TOD カメラで温度計を撮影し、base64変換
     image_data = _image_file_to_base64('image.jpg')
+
 
     # analysis degital meter
     meter_value, meter_time = _analysis_meter_image(access_t, image_data)
@@ -104,24 +120,12 @@ def _analysis_meter_image(_access_token, _image_data):
         m_value = '0000'
         m_time  = '0000'    
 
-    # リクエスト結果（成功でも失敗でも）をDB OR JSONに保存
-    # 　形式は以下の通りとする
-    #       {
-    #             id : auto_increment,
-    #             value : merter_value,
-    #             time : meter_time,
-    #             analysis_result : 1/0{成功/失敗}
-    #             image : image_data(base64形式)
-    #       }　　
-    _json_data = dict()
-    data["id"] = "1"
-    data["value"] = str(m_value)
-    data["time"] = str(m_time)
-    data["analysis_result"] = "1" if m_value is not '0000' else '0'
-    data["image"] = _image_data
-
-    with open('data.json', mode='wt') as file:
-        json.dump(data, file, ensure_ascii=False, indent=2)
+    # リクエスト結果（成功でも失敗でも）をDBに保存
+    insert_analysis(
+        str(m_value), 
+        str(m_time), 
+        "1" if m_value is not '0000' else '0'
+    )
 
     return m_value, m_time
 
