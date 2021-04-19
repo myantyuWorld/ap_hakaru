@@ -7,6 +7,7 @@ from datetime import datetime
 from flask import *
 from flask import render_template
 from flask_cors import CORS
+import picamera
 from db import select_all, insert_analysis
 
 app = Flask(__name__)
@@ -29,9 +30,9 @@ def fetch_all():
 @app.route('/photo_temperature')
 def test_temperature():
     # TOD : ラズパイで写真撮影し、それを変数に格納
-
+    _camera_capture()
     # TOD : 撮影した写真を返せるように修正（現在、ハードコーディング中
-    return '<img src="data:image/png;base64,' + _image_file_to_base64('image.jpg') + '"/>'
+    return '<img src="data:image/png;base64,' + _image_file_to_base64('my_pic.jpg') + '"/>'
 
 # 画像から解析AIに投げた結果をTeams通知します
 @app.route('/analysis_temperature')
@@ -144,6 +145,18 @@ def post_teams_message(_meter_value, _meter_time):
             'title': 'analysis result',
             'text': message
         }))
+
+def _camera_capture():
+    with picamera.PiCamera() as camera:
+        # 解像度の設定
+        camera.resolution = (1024, 768)
+        # 撮影の準備
+        camera.start_preview()
+        # 準備している間、少し待機する
+        time.sleep(2)
+        # 撮影して指定したファイル名で保存する
+        camera.capture('my_pic.jpg')
+        print('Camera End!')
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5000)
