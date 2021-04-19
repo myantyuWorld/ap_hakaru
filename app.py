@@ -150,7 +150,7 @@ def post_teams_message(_meter_value, _meter_time):
 def _camera_capture():
     with picamera.PiCamera() as camera:
         # 解像度の設定
-        camera.resolution = (1024, 768)
+        camera.resolution = (640, 480)
         # 撮影の準備
         camera.start_preview()
         # 準備している間、少し待機する
