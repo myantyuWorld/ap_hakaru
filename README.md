@@ -14,6 +14,20 @@ python - camera - analysis
 解析した温度データを収集して、可視化する
 表現した画面のURL付きでteams通知できればOK?
 
+# 開発手順
+
+## ラズベリーパイの開発環境構築
+TOD
+
+## カメラ撮影できるまで
+TOD
+
+## 撮影した写真をbase64形式に変換し、解析ＡＩへ
+TOD
+
+## teams通知
+TOD
+
 # Framework
 
 - flask
